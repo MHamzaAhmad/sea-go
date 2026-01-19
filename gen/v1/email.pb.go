@@ -110,9 +110,10 @@ type SendEmailRequest struct {
 	InReplyTo string `protobuf:"bytes,11,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Explicit threading references. Usually not needed if `in_reply_to` is set.
 	References []string `protobuf:"bytes,12,rep,name=references,proto3" json:"references,omitempty"`
-	// Set to `true` to return immediately and send the email in the background.
-	// Recommended for bulk sending or when attachments are large.
-	Async         bool `protobuf:"varint,13,opt,name=async,proto3" json:"async,omitempty"`
+	// Reply to a previous email using its email_id (from our response).
+	// Automatically resolves to the correct Message-ID for threading headers.
+	// For advanced use, you can still use in_reply_to with raw Message-IDs.
+	ReplyTo       string `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -231,11 +232,11 @@ func (x *SendEmailRequest) GetReferences() []string {
 	return nil
 }
 
-func (x *SendEmailRequest) GetAsync() bool {
+func (x *SendEmailRequest) GetReplyTo() string {
 	if x != nil {
-		return x.Async
+		return x.ReplyTo
 	}
-	return false
+	return ""
 }
 
 // A file attachment.
@@ -346,14 +347,12 @@ func (*Attachment_Base64Content) isAttachment_Source() {}
 // Response after sending an email.
 type SendEmailResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique system ID for this email. Use this to track events.
+	// Unique email ID. Use this to track events and for reply_to in future emails.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Current status.
+	// Status is always QUEUED. Listen to webhooks/events for delivery status.
 	Status EmailStatus `protobuf:"varint,2,opt,name=status,proto3,enum=v1.EmailStatus" json:"status,omitempty"`
-	// Upstream Message-ID (if available immediately).
-	MessageId string `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// Human-readable description of the status.
-	StatusMessage string `protobuf:"bytes,4,opt,name=status_message,json=statusMessage,proto3" json:"status_message,omitempty"`
+	StatusMessage string `protobuf:"bytes,3,opt,name=status_message,json=statusMessage,proto3" json:"status_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -400,13 +399,6 @@ func (x *SendEmailResponse) GetStatus() EmailStatus {
 		return x.Status
 	}
 	return EmailStatus_EMAIL_STATUS_UNSPECIFIED
-}
-
-func (x *SendEmailResponse) GetMessageId() string {
-	if x != nil {
-		return x.MessageId
-	}
-	return ""
 }
 
 func (x *SendEmailResponse) GetStatusMessage() string {
@@ -568,7 +560,7 @@ var File_v1_email_proto protoreflect.FileDescriptor
 
 const file_v1_email_proto_rawDesc = "" +
 	"\n" +
-	"\x0ev1/email.proto\x12\x02v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0fv1/events.proto\"\xde\x03\n" +
+	"\x0ev1/email.proto\x12\x02v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x0fv1/events.proto\"\xe3\x03\n" +
 	"\x10SendEmailRequest\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
 	"\x02to\x18\x02 \x03(\tR\x02to\x12\x0e\n" +
@@ -584,8 +576,8 @@ const file_v1_email_proto_rawDesc = "" +
 	"\vin_reply_to\x18\v \x01(\tR\tinReplyTo\x12\x1e\n" +
 	"\n" +
 	"references\x18\f \x03(\tR\n" +
-	"references\x12\x14\n" +
-	"\x05async\x18\r \x01(\bR\x05async\x1a;\n" +
+	"references\x12\x19\n" +
+	"\breply_to\x18\r \x01(\tR\areplyTo\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x92\x01\n" +
@@ -595,13 +587,11 @@ const file_v1_email_proto_rawDesc = "" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x03url\x18\x03 \x01(\tH\x00R\x03url\x12'\n" +
 	"\x0ebase64_content\x18\x04 \x01(\tH\x00R\rbase64ContentB\b\n" +
-	"\x06source\"\x92\x01\n" +
+	"\x06source\"s\n" +
 	"\x11SendEmailResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x0f.v1.EmailStatusR\x06status\x12\x1d\n" +
-	"\n" +
-	"message_id\x18\x03 \x01(\tR\tmessageId\x12%\n" +
-	"\x0estatus_message\x18\x04 \x01(\tR\rstatusMessage\"d\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x0f.v1.EmailStatusR\x06status\x12%\n" +
+	"\x0estatus_message\x18\x03 \x01(\tR\rstatusMessage\"d\n" +
 	"\x13StreamEventsRequest\x12.\n" +
 	"\vevent_types\x18\x01 \x03(\x0e2\r.v1.EventTypeR\n" +
 	"eventTypes\x12\x1d\n" +
